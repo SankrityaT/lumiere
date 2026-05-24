@@ -8,8 +8,8 @@ const SUGGESTIONS = [
   {
     icon: Compass,
     title: "Compare frontier AI models",
-    body: "Claude 4 vs GPT-5 vs Gemini 2.0 on benchmarks and fit.",
-    prompt: "Compare the latest AI models: Claude 4, GPT-5, and Gemini 2.0 across benchmarks, capabilities, and best use cases.",
+    body: "Claude 4.7 vs GPT-5.5 vs Gemini 3.1 Pro on benchmarks and fit.",
+    prompt: "Compare the latest frontier models: Claude 4.7, GPT-5.5, and Gemini 3.1 Pro across benchmarks, capabilities, and best use cases.",
   },
   {
     icon: Code2,

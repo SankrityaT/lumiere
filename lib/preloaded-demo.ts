@@ -6,7 +6,7 @@ import { countTokens } from "@/components/StreamingText";
 
 const DEMO_ID = "demo-frontier-comparison";
 const USER_PROMPT =
-  "Compare the latest AI models: Claude 4, GPT-5, and Gemini 2.0 across benchmarks, capabilities, and best use cases.";
+  "Compare the latest frontier models: Claude 4.7, GPT-5.5, and Gemini 3.1 Pro across benchmarks, capabilities, and best use cases.";
 
 export function buildDemoConversation(): Conversation {
   const script = scriptFor(USER_PROMPT);

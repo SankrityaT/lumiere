@@ -11,87 +11,87 @@ const COMPARE_MODELS_SOURCES: Source[] = [
   {
     id: 1,
     domain: "anthropic.com",
-    title: "Introducing Claude 4, extended reasoning and tool use",
-    url: "https://www.anthropic.com/news",
-    snippet: "Claude 4 brings persistent reasoning, 1M-token context, and refined tool orchestration to production workloads.",
+    title: "Claude 4.7: extended reasoning, 1M context, agentic tool use",
+    url: "https://www.anthropic.com/news/claude-4-7",
+    snippet: "Claude 4.7 ships with always-on extended reasoning, a 1M-token context window, and dramatic gains on agentic and long-horizon coding tasks.",
     faviconColor: "#d97757",
     faviconLetter: "A",
   },
   {
     id: 2,
     domain: "openai.com",
-    title: "GPT-5 Release Notes: persistent memory, native tools",
-    url: "https://openai.com/index/gpt-5",
-    snippet: "GPT-5 introduces native multimodal tool use, persistent session memory, and 256K token contexts.",
+    title: "GPT-5.5 Release Notes: persistent memory, native multimodal",
+    url: "https://openai.com/index/gpt-5-5",
+    snippet: "GPT-5.5 introduces cross-session persistent memory, native tool orchestration, and stronger creative writing benchmarks.",
     faviconColor: "#10a37f",
     faviconLetter: "O",
   },
   {
     id: 3,
     domain: "blog.google",
-    title: "Gemini 2.0: Our Next Generation Frontier Model",
-    url: "https://blog.google/technology/google-deepmind/gemini-2",
-    snippet: "Gemini 2.0 doubles down on multimodal, particularly video, and extends agentic capabilities across Workspace.",
+    title: "Gemini 3.1 Pro: thinking mode and video understanding",
+    url: "https://blog.google/technology/google-deepmind/gemini-3-1-pro",
+    snippet: "Gemini 3.1 Pro brings dynamic thinking budgets, leading video understanding, and tight integration across Google Workspace.",
     faviconColor: "#4285f4",
     faviconLetter: "G",
   },
   {
     id: 4,
     domain: "artificialanalysis.ai",
-    title: "AI Model Comparison, Late 2025 Frontier Roundup",
+    title: "AI Model Leaderboard, Q2 2026 frontier roundup",
     url: "https://artificialanalysis.ai/leaderboards",
-    snippet: "Independent benchmarking across reasoning, code, math, and multimodal tasks for the late-2025 frontier.",
+    snippet: "Independent benchmarking across reasoning, coding, math, and multimodal tasks for the spring-2026 frontier.",
     faviconColor: "#7c3aed",
     faviconLetter: "α",
   },
   {
     id: 5,
     domain: "techcrunch.com",
-    title: "Frontier Model Showdown: What changed in the last six months",
-    url: "https://techcrunch.com/2025/11/ai-frontier-showdown",
-    snippet: "Production teams report markedly different fit across the major frontier labs, workflow integration matters more than raw benchmarks.",
+    title: "The frontier shifts: what's changed since Claude 4",
+    url: "https://techcrunch.com/2026/05/frontier-shifts",
+    snippet: "Production teams report a clear divergence in fit by task type. Workflow integration matters more than benchmark deltas.",
     faviconColor: "#1a1a1a",
     faviconLetter: "T",
   },
   {
     id: 6,
     domain: "theverge.com",
-    title: "The state of AI: November 2025",
-    url: "https://www.theverge.com/ai-state-2025-november",
-    snippet: "An overview of where the major labs stand on safety, capability, and deployment in late 2025.",
+    title: "The state of AI: spring 2026",
+    url: "https://www.theverge.com/ai-state-2026-spring",
+    snippet: "Where the major labs stand on capability, safety, and deployment in the spring of 2026.",
     faviconColor: "#fa4616",
     faviconLetter: "V",
   },
 ];
 
-const COMPARE_MODELS_RESPONSE = `## The frontier in late 2025
+const COMPARE_MODELS_RESPONSE = `## The frontier in spring 2026
 
-The frontier-model landscape has shifted dramatically over the past six months. **Claude 4**[1] launched with breakthrough capabilities in extended reasoning and a 1M-token context window, while OpenAI's **GPT-5**[2] introduced native tool use and persistent memory across sessions. Google's **Gemini 2.0**[3] doubled down on multimodal understanding, particularly for video and live workflows.
+The frontier-model landscape has reshuffled meaningfully over the past two quarters. Anthropic's **Claude 4.7**[1] now ships with always-on extended reasoning, a 1M-token context window, and step-change gains on long-horizon coding and agentic tasks. OpenAI's **GPT-5.5**[2] introduced cross-session persistent memory and tightened its native multimodal stack. Google's **Gemini 3.1 Pro**[3] doubled down on dynamic thinking budgets and remains best-in-class for video understanding and Workspace.
 
 ## Benchmark snapshot
 
-According to *Artificial Analysis*[4], the picture on key reasoning benchmarks is closer than the marketing suggests:
+According to *Artificial Analysis*[4], the picture on key reasoning benchmarks is tighter than the marketing suggests:
 
-- **GPQA Diamond**: Claude 4 (84.1%) edges out GPT-5 (82.3%) and Gemini 2.0 (79.8%)
-- **HumanEval**: GPT-5 leads at 94.7%, with Claude 4 close behind at 93.2%
-- **MMLU-Pro**: all three within margin of error around 88%
+- **GPQA Diamond**: Claude 4.7 (87.4%) edges out GPT-5.5 (85.9%) and Gemini 3.1 Pro (83.1%)
+- **SWE-bench Verified**: Claude 4.7 leads at 74.8%, with GPT-5.5 at 71.2% and Gemini 3.1 Pro at 66.4%
+- **MMLU-Pro**: all three sit within a point of 91%
 
 ## Where each shines
 
-Claude 4[1] excels at long-form analysis and editing inside large codebases, engineering teams in particular report the deepest fit[5]. GPT-5[2] leads in creative writing and chained tool orchestration. Gemini 2.0[3] is unmatched for video understanding and Workspace integration.
+Claude 4.7[1] is the consensus pick for long-context analysis and serious code work; engineering teams report the deepest fit on real-world coding agents[5]. GPT-5.5[2] keeps the lead in creative writing, conversational warmth, and chained tool orchestration. Gemini 3.1 Pro[3] is unmatched on video understanding and the only frontier model with first-class Workspace integration.
 
 > For most production use cases, the differentiator is *less about raw capability and more about workflow fit*[5][6].
 
 \`\`\`ts
 // rough fit-by-task heuristic
 const recommend = (task: Task) =>
-  task.kind === "long-context"   ? "claude-4"   :
-  task.kind === "creative"        ? "gpt-5"      :
-  task.kind === "multimodal-video"? "gemini-2"   :
+  task.kind === "long-context-code"  ? "claude-4-7"      :
+  task.kind === "creative-writing"   ? "gpt-5-5"         :
+  task.kind === "multimodal-video"   ? "gemini-3-1-pro"  :
   "any-frontier-model";
 \`\`\`
 
-Would you like me to dig deeper into any specific dimension, pricing, latency, or agent-task performance?`;
+Want me to dig deeper into any specific dimension, pricing, latency, or agent-task performance?`;
 
 const COMPARE_MODELS_REASONING = [
   "The user wants a comparison across three frontier models. To answer well I should pull recent release notes, an independent benchmark source, and at least one piece of editorial coverage to capture deployment patterns.",
@@ -134,9 +134,9 @@ export function scriptFor(userText: string): DemoScript {
     return {
       reasoning: COMPARE_MODELS_REASONING,
       toolQueries: [
-        "Claude 4 launch features benchmarks 2025",
-        "GPT-5 release notes capabilities 2025",
-        "Gemini 2.0 features Workspace 2025",
+        "Claude 4.7 release benchmarks reasoning agentic",
+        "GPT-5.5 persistent memory multimodal release",
+        "Gemini 3.1 Pro thinking mode video Workspace",
       ],
       sources: COMPARE_MODELS_SOURCES,
       response: COMPARE_MODELS_RESPONSE,
