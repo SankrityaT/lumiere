@@ -13,7 +13,7 @@ export interface AIMessageData {
   id: string;
   state: ThinkingState | null; // null => done
   reasoning?: { thoughts: string[]; visibleCount: number; durationSec: number | null };
-  toolCall?: { query: string; sources: Source[]; status: "running" | "done"; visibleCount: number };
+  toolCall?: { queries: string[]; sources: Source[]; status: "running" | "done"; visibleCount: number };
   response?: { text: string; revealedTokens: number };
   done: boolean;
 }
@@ -64,7 +64,7 @@ export function AIMessage({ data }: AIMessageProps) {
         {/* Tool call */}
         {data.toolCall && (
           <ToolCall
-            query={data.toolCall.query}
+            queries={data.toolCall.queries}
             sources={data.toolCall.sources}
             status={data.toolCall.status}
             visibleCount={data.toolCall.visibleCount}

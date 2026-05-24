@@ -2,7 +2,7 @@ import type { Source } from "@/components/SourceChip";
 
 export interface DemoScript {
   reasoning: string[];
-  toolQuery: string;
+  toolQueries: string[];
   sources: Source[];
   response: string;
 }
@@ -133,7 +133,11 @@ export function scriptFor(userText: string): DemoScript {
   if (wantsCompare) {
     return {
       reasoning: COMPARE_MODELS_REASONING,
-      toolQuery: "Claude 4 vs GPT-5 vs Gemini 2.0 benchmarks Q4 2025",
+      toolQueries: [
+        "Claude 4 launch features benchmarks 2025",
+        "GPT-5 release notes capabilities 2025",
+        "Gemini 2.0 features Workspace 2025",
+      ],
       sources: COMPARE_MODELS_SOURCES,
       response: COMPARE_MODELS_RESPONSE,
     };
@@ -141,7 +145,7 @@ export function scriptFor(userText: string): DemoScript {
 
   return {
     reasoning: GENERIC_REASONING,
-    toolQuery: "",
+    toolQueries: [],
     sources: GENERIC_SOURCES,
     response: GENERIC_RESPONSE,
   };

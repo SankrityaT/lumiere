@@ -1,8 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { Mark } from "./Mark";
 
 interface ReasoningPanelProps {
   thoughts: string[];
@@ -26,7 +27,7 @@ export function ReasoningPanel({ thoughts, visibleCount, durationSec, defaultOpe
         onClick={() => setOpen(!open)}
         className="group inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-[12.5px] text-ink-dim transition-colors hover:text-ink"
       >
-        <Sparkles size={11} strokeWidth={1.6} className="text-accent/70" />
+        <Mark size={14} className="text-accent/80" dense />
         <span className="serif-italic text-[13px]">
           {isStreaming ? "thinking" : `thought for ${durationSec}s`}
         </span>

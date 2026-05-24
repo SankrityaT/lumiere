@@ -6,13 +6,13 @@ import { useState } from "react";
 import { SourceChip, type Source } from "./SourceChip";
 
 interface ToolCallProps {
-  query: string;
+  queries: string[];
   sources: Source[];
   status: "running" | "done";
   visibleCount: number;
 }
 
-export function ToolCall({ query, sources, status, visibleCount }: ToolCallProps) {
+export function ToolCall({ queries, sources, status, visibleCount }: ToolCallProps) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -42,14 +42,18 @@ export function ToolCall({ query, sources, status, visibleCount }: ToolCallProps
             <span>Web search</span>
             <span>·</span>
             <span>
-              {status === "done"
-                ? `${sources.length} sources`
-                : `${visibleCount} of ${sources.length}`}
+              {queries.length > 1 ? `${queries.length} queries · ` : ""}
+              {status === "done" ? `${sources.length} sources` : `${sources.length} sources so far`}
             </span>
           </div>
-          <div className="mt-0.5 truncate text-[13.5px] text-ink serif-italic">
-            "{query}"
-          </div>
+          <ul className="mt-0.5 space-y-0.5">
+            {queries.map((q, i) => (
+              <li key={i} className="truncate text-[13.5px] text-ink serif-italic">
+                <span className="font-mono text-[10.5px] not-italic text-ink-muted mr-1.5">{String(i + 1).padStart(2, "0")}</span>
+                "{q}"
+              </li>
+            ))}
+          </ul>
         </div>
         <ChevronDown
           size={15}

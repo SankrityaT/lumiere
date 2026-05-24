@@ -16,21 +16,40 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 
 const MAX_TOOL_CALLS = 5; // hard cap on web searches per turn
 
-const SYSTEM_PROMPT = `You are Lumière, a thoughtful editorial AI assistant with a refined, magazine-like voice.
+const SYSTEM_PROMPT = `You are Lumière, a research-grade editorial AI assistant. Your job is to produce magazine-quality answers grounded in real sources when the question requires it.
 
-WHEN TO SEARCH
-- Use the web_search tool any time the user asks about recent events, specific facts, products, papers, prices, or anything you may not have current knowledge of.
-- You may call web_search MULTIPLE times in a single response to research different sub-topics. Issue separate queries for each distinct angle.
-- Do not search for general knowledge, opinions, or clearly historical facts.
+RESEARCH PROTOCOL (mandatory for any question involving current information, comparisons, named products, recent events, prices, papers, benchmarks, or specific facts you cannot verify from training data):
 
-FORMATTING
-- Use markdown: ## and ### for section headings, **bold** for key terms, *italic* for emphasis, inline \`code\` and fenced \`\`\`lang code blocks for snippets, - bullets for lists, > for the occasional pull-quote.
-- When you cite web results, place an inline citation like [1] or [3,4] immediately after the sentence or clause it supports. Number citations in the order sources were returned across all your searches (1, 2, 3...).
-- Do NOT include a "Sources:" footer; the UI renders citations separately.
+1. PLAN: Briefly identify the distinct sub-topics or angles needed. Verbalize this plan so it surfaces in your thinking.
 
-TONE
-- Editorial. Confident, concise, considered. Avoid filler ("Certainly!", "I'd be happy to..."). Open with substance.
-- When the user asks for an opinion, give one.`;
+2. SEARCH WIDELY: Use the web_search tool MULTIPLE TIMES — issue a SEPARATE query for each distinct angle.
+   - Comparison of N items → N separate searches, one per item.
+   - "What's new in X" → 2-3 searches covering different facets.
+   - Single-fact lookup → 1 search is fine.
+   - Aim for 2-5 searches when the question is research-flavored. A single search is not enough for comparisons.
+
+3. WRITE: Synthesize across all sources. Cross-reference claims. Do not parrot any single source.
+
+WHEN NOT TO SEARCH:
+- Pure math, logic, code with no library/version specifics, general well-known concepts, or opinion questions.
+- For these, answer directly without calling web_search.
+
+CITATIONS (strict format):
+- Use inline citations IMMEDIATELY after the clause they support: \`[1]\` for one source, \`[1,2]\` for multiple (NO SPACES, NO PARENS, NO superscript syntax).
+- Number sources in the order they appeared across ALL your web_search calls, starting at 1.
+- Every factual claim drawn from a search MUST carry a citation.
+- Do NOT add a "Sources:" footer or reference list. The UI renders sources separately.
+
+FORMATTING (editorial article style):
+- ## Section heading for each major topic
+- **Bold** for key terms; *italic* sparingly for emphasis
+- Bullet lists (-) for comparisons and enumerations
+- Fenced code blocks (\`\`\`ts) for any code; inline \`code\` for short identifiers
+- > Blockquote once, for a single pivotal insight (optional)
+
+VOICE:
+- Confident, considered, concise. Open with substance — no "Certainly!", no "I'd be happy to". When asked for an opinion, give one.
+- Aim for ~300-500 words for research answers, ~80-150 for direct questions.`;
 
 const WEB_SEARCH_TOOL = {
   name: "web_search",
@@ -101,25 +120,54 @@ function makeSource(result: { url: string; title?: string; content?: string }, i
   };
 }
 
-async function tavilySearch(query: string, key: string) {
-  const res = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: key,
-      query,
-      search_depth: "basic",
-      max_results: 6,
-      include_answer: false,
-      include_raw_content: false,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Tavily ${res.status}: ${text.slice(0, 160)}`);
+async function tavilySearch(query: string, key: string): Promise<Array<{ url: string; title?: string; content?: string }>> {
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: key,
+        query,
+        search_depth: "basic",
+        max_results: 6,
+        include_answer: false,
+        include_raw_content: false,
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      if (res.status === 401 || res.status === 403)
+        throw new Error("Tavily key rejected. Check your Tavily API key in Settings.");
+      if (res.status === 429) throw new Error("Tavily rate limit hit. Wait a moment and retry.");
+      throw new Error(`Tavily ${res.status}: ${text.slice(0, 160)}`);
+    }
+    const data = (await res.json()) as { results?: Array<{ url: string; title?: string; content?: string }> };
+    return data.results || [];
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Tavily search timed out after 15s.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  const data = (await res.json()) as { results?: Array<{ url: string; title?: string; content?: string }> };
-  return data.results || [];
+}
+
+function friendlyGeminiError(status: number, body: string): string {
+  if (status === 400) {
+    if (body.includes("API_KEY_INVALID") || body.includes("API key not valid"))
+      return "Gemini key invalid. Check your key in Settings.";
+    if (body.includes("quota") || body.includes("Quota"))
+      return "Gemini quota exhausted on this key. Try again later or use a different key.";
+    return `Gemini rejected the request (400): ${body.slice(0, 160)}`;
+  }
+  if (status === 401 || status === 403) return "Gemini key rejected. Check your key in Settings.";
+  if (status === 429) return "Gemini rate limit hit. Wait a few seconds and retry.";
+  if (status === 503 || status === 502) return "Gemini is temporarily unavailable. Retry shortly.";
+  return `Gemini ${status}: ${body.slice(0, 160)}`;
 }
 
 // Async generator that yields parsed Gemini SSE JSON chunks.
@@ -214,18 +262,32 @@ export async function POST(req: NextRequest) {
             request.tools = [{ functionDeclarations: [WEB_SEARCH_TOOL] }];
           }
 
-          const geminiRes = await fetch(`${GEMINI_URL}&key=${llmKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(request),
-          });
+          const geminiCtrl = new AbortController();
+          const geminiTimeout = setTimeout(() => geminiCtrl.abort(), 45000);
+          let geminiRes: Response;
+          try {
+            geminiRes = await fetch(`${GEMINI_URL}&key=${llmKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(request),
+              signal: geminiCtrl.signal,
+            });
+          } catch (err) {
+            clearTimeout(geminiTimeout);
+            const msg =
+              err instanceof Error && err.name === "AbortError"
+                ? "Gemini timed out after 45s. Try a shorter prompt."
+                : err instanceof Error
+                  ? err.message
+                  : String(err);
+            send({ type: "error", message: msg });
+            break;
+          }
+          clearTimeout(geminiTimeout);
 
           if (!geminiRes.ok || !geminiRes.body) {
             const errText = await geminiRes.text().catch(() => "");
-            send({
-              type: "error",
-              message: `Gemini ${geminiRes.status}: ${errText.slice(0, 200) || "no body"}`,
-            });
+            send({ type: "error", message: friendlyGeminiError(geminiRes.status, errText) });
             break;
           }
 
@@ -296,20 +358,26 @@ export async function POST(req: NextRequest) {
               send({ type: "state", value: "reading", count: allSources.length });
 
               // Send the tool result back to the model.
+              // Gemini's REST API expects role "user" for function responses,
+              // and the response object should be JSON-serializable nested data
+              // the model can read like a tool return value.
               contents.push({
-                role: "function",
+                role: "user",
                 parts: [
                   {
                     functionResponse: {
                       name: "web_search",
                       response: {
                         query,
-                        results: newSources.map((s) => ({
-                          id: s.id,
-                          title: s.title,
-                          url: s.url,
-                          snippet: s.snippet,
-                        })),
+                        result_count: newSources.length,
+                        results: newSources.length
+                          ? newSources.map((s) => ({
+                              id: s.id,
+                              title: s.title,
+                              url: s.url,
+                              snippet: s.snippet,
+                            }))
+                          : [{ note: "No results found. Try a different query or answer from training data." }],
                       },
                     },
                   },

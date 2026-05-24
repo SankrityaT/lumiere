@@ -5,209 +5,78 @@ import { ChatInput, type Attachment } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
 import { UserMessage } from "./UserMessage";
 import { AIMessage, type AIMessageData } from "./AIMessage";
-import { scriptFor } from "@/lib/demo-script";
 import { countTokens } from "./StreamingText";
-import { Share2, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
+import { Share2, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Settings, KeyRound, Sparkles } from "lucide-react";
 import { useKeys } from "@/lib/use-keys";
 import { attachmentsToApi, streamChat, type ChatMessage } from "@/lib/chat-client";
 import type { Source } from "./SourceChip";
-
-interface UserMsg {
-  kind: "user";
-  id: string;
-  text: string;
-  attachments?: Attachment[];
-}
-
-interface AIMsg {
-  kind: "ai";
-  id: string;
-  data: AIMessageData;
-}
-
-type Msg = UserMsg | AIMsg;
+import { deriveTitle, type Conversation, type Msg, type UserMsg, type AIMsg } from "@/lib/conversations";
 
 interface ChatAreaProps {
+  conversation: Conversation | null;
   onToggleSidebar?: () => void;
   sidebarOpen: boolean;
   onOpenSettings: () => void;
+  onNewConversation: () => void;
+  ensureActive: () => string;
+  writeToConversation: (id: string, updater: (messages: Msg[]) => Msg[], titleHint?: string) => void;
+  updateActiveMessages: (updater: (messages: Msg[]) => Msg[]) => void;
 }
 
-const HISTORY_KEY = "lumiere.chat_history";
-
-export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatAreaProps) {
+export function ChatArea({
+  conversation,
+  onToggleSidebar,
+  sidebarOpen,
+  onOpenSettings,
+  onNewConversation,
+  ensureActive,
+  writeToConversation,
+  updateActiveMessages,
+}: ChatAreaProps) {
   const keys = useKeys();
   const isLive = !!keys.llm;
 
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Restore conversation from localStorage on first mount
+  // Stop any in-flight generation if conversation switches
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(HISTORY_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Msg[];
-      // Only restore if all AI messages were marked done (avoid restoring a half-streaming turn)
-      if (Array.isArray(parsed) && parsed.every((m) => m.kind === "user" || (m.kind === "ai" && m.data.done))) {
-        setMessages(parsed);
-      }
-    } catch {}
-  }, []);
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [conversation?.id]);
 
-  // Persist whenever we're idle and have content
-  useEffect(() => {
-    if (isGenerating) return;
-    if (messages.length === 0) {
-      window.localStorage.removeItem(HISTORY_KEY);
-      return;
-    }
-    const serializable = messages.map((m) => {
-      if (m.kind === "user") {
-        // strip blob: preview URLs since they don't survive reload
-        return { ...m, attachments: m.attachments?.map((a) => ({ ...a, preview: undefined })) };
-      }
-      return m;
-    });
-    try {
-      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(serializable));
-    } catch {}
-  }, [messages, isGenerating]);
-
-  const stopAll = useCallback(() => {
-    timeoutsRef.current.forEach(clearTimeout);
-    timeoutsRef.current = [];
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsGenerating(false);
-    setMessages((cur) =>
-      cur.map((m) =>
-        m.kind === "ai" && !m.data.done ? { ...m, data: { ...m.data, state: null, done: true } } : m,
-      ),
-    );
-  }, []);
-
-  const schedule = (fn: () => void, ms: number) => {
-    const t = setTimeout(fn, ms);
-    timeoutsRef.current.push(t);
-    return t;
-  };
-
-  const updateAI = (id: string, updater: (d: AIMessageData) => AIMessageData) => {
-    setMessages((cur) =>
-      cur.map((m) => (m.kind === "ai" && m.id === id ? { ...m, data: updater(m.data) } : m)),
-    );
-  };
-
+  // Auto-scroll on new messages
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [conversation?.messages.length]);
 
-  // ----------------- MOCK PATH (no LLM key) -----------------
-  const runMock = (userId: string, aiId: string, text: string) => {
-    const script = scriptFor(text);
-    const hasSearch = script.sources.length > 0;
-    const totalTokens = countTokens(script.response);
-
-    const initialAI: AIMessageData = {
-      id: aiId,
-      state: { kind: "thinking" },
-      reasoning: { thoughts: script.reasoning, visibleCount: 0, durationSec: null },
-      toolCall: hasSearch
-        ? { query: script.toolQuery, sources: script.sources, status: "running", visibleCount: 0 }
-        : undefined,
-      response: { text: script.response, revealedTokens: 0 },
-      done: false,
-    };
-
-    setMessages((cur) => cur.map((m) => (m.kind === "ai" && m.id === aiId ? { ...m, data: initialAI } : m)));
-    setIsGenerating(true);
-
-    const startedAt = Date.now();
-    let t = 600;
-    script.reasoning.forEach((_, i) => {
-      t += 800;
-      schedule(() => updateAI(aiId, (d) => ({ ...d, reasoning: { ...d.reasoning!, visibleCount: i + 1 } })), t);
-    });
-
-    if (hasSearch) {
-      t += 700;
-      schedule(() => updateAI(aiId, (d) => ({ ...d, state: { kind: "searching", query: script.toolQuery } })), t);
-      t += 900;
-      script.sources.forEach((_, i) => {
-        schedule(
-          () =>
-            updateAI(aiId, (d) => ({
-              ...d,
-              toolCall: d.toolCall ? { ...d.toolCall, visibleCount: i + 1 } : d.toolCall,
-              state: { kind: "reading", count: i + 1 },
-            })),
-          t + i * 280,
-        );
-      });
-      t += script.sources.length * 280 + 400;
-      schedule(
-        () =>
-          updateAI(aiId, (d) => ({
-            ...d,
-            toolCall: d.toolCall ? { ...d.toolCall, status: "done" } : d.toolCall,
-            state: { kind: "synthesizing" },
-          })),
-        t,
-      );
-      t += 1000;
-    }
-
-    schedule(() => {
-      const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      updateAI(aiId, (d) => ({
-        ...d,
-        reasoning: d.reasoning ? { ...d.reasoning, durationSec: elapsed } : d.reasoning,
-        state: { kind: "writing" },
-      }));
-    }, t);
-    t += 600;
-
-    schedule(() => updateAI(aiId, (d) => ({ ...d, state: null })), t);
-
-    const INTERVAL = 22;
-    for (let i = 1; i <= totalTokens; i++) {
-      schedule(
-        () =>
-          updateAI(aiId, (d) => ({
-            ...d,
-            response: d.response ? { ...d.response, revealedTokens: i } : d.response,
-          })),
-        t + i * INTERVAL,
+  const stopAll = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsGenerating(false);
+    if (conversation) {
+      updateActiveMessages((msgs) =>
+        msgs.map((m) =>
+          m.kind === "ai" && !m.data.done ? { ...m, data: { ...m.data, state: null, done: true } } : m,
+        ),
       );
     }
-    t += totalTokens * INTERVAL + 200;
+  }, [conversation, updateActiveMessages]);
 
-    schedule(() => {
-      updateAI(aiId, (d) => ({ ...d, done: true }));
-      setIsGenerating(false);
-    }, t);
+  const writeAI = (convoId: string, aiId: string, updater: (d: AIMessageData) => AIMessageData) => {
+    writeToConversation(convoId, (msgs) =>
+      msgs.map((m) => (m.kind === "ai" && m.id === aiId ? { ...m, data: updater(m.data) } : m)),
+    );
   };
 
-  // ----------------- LIVE PATH (real API) -----------------
-  const runLive = async (aiId: string, history: Msg[], userText: string, userAttachments: Attachment[]) => {
+  const runLive = async (convoId: string, aiId: string, history: Msg[], userText: string, userAttachments: Attachment[]) => {
     setIsGenerating(true);
 
-    const initialAI: AIMessageData = {
-      id: aiId,
-      state: { kind: "thinking" },
-      reasoning: { thoughts: [], visibleCount: 0, durationSec: null },
-      response: { text: "", revealedTokens: 0 },
-      done: false,
-    };
-    setMessages((cur) => cur.map((m) => (m.kind === "ai" && m.id === aiId ? { ...m, data: initialAI } : m)));
-
-    // Build API history from prior messages (exclude the current AI placeholder)
+    // Build API history from prior completed exchanges (exclude the in-flight AI placeholder)
     const apiMessages: ChatMessage[] = [];
     for (const m of history) {
       if (m.kind === "user") {
@@ -223,7 +92,6 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
     const startedAt = Date.now();
     let reasoningBuffer = "";
     let textBuffer = "";
-    let toolQuery = "";
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -232,67 +100,69 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
       for await (const ev of streamChat(apiMessages, { signal: ctrl.signal })) {
         if (ev.type === "state") {
           if (ev.value === "thinking") {
-            updateAI(aiId, (d) => ({ ...d, state: { kind: "thinking" } }));
+            writeAI(convoId, aiId, (d) => ({ ...d, state: { kind: "thinking" } }));
           } else if (ev.value === "searching") {
-            toolQuery = ev.query || "";
-            updateAI(aiId, (d) => ({
+            const q = ev.query || "";
+            writeAI(convoId, aiId, (d) => ({
               ...d,
-              state: { kind: "searching", query: toolQuery },
+              state: { kind: "searching", query: q },
               toolCall: d.toolCall
-                ? { ...d.toolCall, query: toolQuery, status: "running" }
-                : { query: toolQuery, sources: [], status: "running", visibleCount: 0 },
+                ? { ...d.toolCall, queries: d.toolCall.queries.includes(q) ? d.toolCall.queries : [...d.toolCall.queries, q], status: "running" }
+                : { queries: [q], sources: [], status: "running", visibleCount: 0 },
             }));
           } else if (ev.value === "reading") {
-            updateAI(aiId, (d) => ({ ...d, state: { kind: "reading", count: ev.count || 0 } }));
+            writeAI(convoId, aiId, (d) => ({ ...d, state: { kind: "reading", count: ev.count || 0 } }));
           } else if (ev.value === "synthesizing") {
-            updateAI(aiId, (d) => ({
+            writeAI(convoId, aiId, (d) => ({
               ...d,
               state: { kind: "synthesizing" },
               toolCall: d.toolCall ? { ...d.toolCall, status: "done" } : d.toolCall,
             }));
           } else if (ev.value === "writing") {
-            updateAI(aiId, (d) => ({ ...d, state: { kind: "writing" } }));
+            writeAI(convoId, aiId, (d) => ({ ...d, state: { kind: "writing" } }));
           } else if (ev.value === null) {
             const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-            updateAI(aiId, (d) => ({
+            writeAI(convoId, aiId, (d) => ({
               ...d,
               state: null,
               reasoning: d.reasoning ? { ...d.reasoning, durationSec: elapsed } : d.reasoning,
+              toolCall: d.toolCall ? { ...d.toolCall, status: "done" } : d.toolCall,
             }));
           }
         } else if (ev.type === "reasoning_delta") {
           reasoningBuffer += ev.text;
-          // Split on double-newlines to get separate paragraphs in the panel.
           const thoughts = reasoningBuffer
             .split(/\n\n+/)
             .map((s) => s.trim())
             .filter(Boolean);
-          updateAI(aiId, (d) => ({
+          writeAI(convoId, aiId, (d) => ({
             ...d,
             reasoning: { thoughts, visibleCount: thoughts.length, durationSec: d.reasoning?.durationSec ?? null },
           }));
         } else if (ev.type === "tool_start") {
-          toolQuery = ev.query;
-          updateAI(aiId, (d) => ({
+          const q = ev.query;
+          writeAI(convoId, aiId, (d) => ({
             ...d,
-            toolCall: { query: ev.query, sources: d.toolCall?.sources ?? [], status: "running", visibleCount: d.toolCall?.sources.length ?? 0 },
+            toolCall: d.toolCall
+              ? { ...d.toolCall, queries: d.toolCall.queries.includes(q) ? d.toolCall.queries : [...d.toolCall.queries, q], status: "running" }
+              : { queries: [q], sources: [], status: "running", visibleCount: 0 },
           }));
         } else if (ev.type === "sources") {
           const items: Source[] = ev.items;
-          updateAI(aiId, (d) => ({
+          writeAI(convoId, aiId, (d) => ({
             ...d,
             toolCall: d.toolCall
               ? { ...d.toolCall, sources: items, visibleCount: items.length }
-              : { query: toolQuery, sources: items, status: "running", visibleCount: items.length },
+              : { queries: [], sources: items, status: "running", visibleCount: items.length },
           }));
         } else if (ev.type === "text_delta") {
           textBuffer += ev.text;
-          updateAI(aiId, (d) => ({
+          writeAI(convoId, aiId, (d) => ({
             ...d,
             response: { text: textBuffer, revealedTokens: countTokens(textBuffer) },
           }));
         } else if (ev.type === "error") {
-          updateAI(aiId, (d) => ({
+          writeAI(convoId, aiId, (d) => ({
             ...d,
             state: null,
             response: { text: `> **Error:** ${ev.message}`, revealedTokens: countTokens(`> **Error:** ${ev.message}`) },
@@ -300,7 +170,7 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
           }));
         } else if (ev.type === "done") {
           const elapsed = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-          updateAI(aiId, (d) => ({
+          writeAI(convoId, aiId, (d) => ({
             ...d,
             state: null,
             reasoning: d.reasoning ? { ...d.reasoning, durationSec: elapsed } : d.reasoning,
@@ -310,7 +180,7 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      updateAI(aiId, (d) => ({
+      writeAI(convoId, aiId, (d) => ({
         ...d,
         state: null,
         response: { text: `> **Stream error:** ${msg}`, revealedTokens: countTokens(`> **Stream error:** ${msg}`) },
@@ -325,9 +195,14 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
   const submit = useCallback(
     async (text: string, attachments: Attachment[]) => {
       if (isGenerating) return;
+      if (!text.trim() && attachments.length === 0) return;
+
+      // Ensure we have a writable conversation to send into. ensureActive
+      // handles forking off the read-only demo automatically.
+      const effectiveId = ensureActive();
+
       const userId = `u-${Date.now()}`;
       const aiId = `a-${Date.now() + 1}`;
-
       const placeholderAI: AIMessageData = {
         id: aiId,
         state: { kind: "thinking" },
@@ -336,32 +211,42 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
         done: false,
       };
 
-      const history = messages;
       const userMsg: UserMsg = { kind: "user", id: userId, text, attachments };
       const aiMsg: AIMsg = { kind: "ai", id: aiId, data: placeholderAI };
-      setMessages((cur) => [...cur, userMsg, aiMsg]);
 
-      if (isLive) {
-        await runLive(aiId, history, text, attachments);
-      } else {
-        runMock(userId, aiId, text);
+      // Capture history snapshot BEFORE we add the new user/AI pair.
+      const historySnapshot: Msg[] = conversation?.id === effectiveId ? conversation.messages : [];
+
+      writeToConversation(
+        effectiveId,
+        (msgs) => [...msgs, userMsg, aiMsg],
+        deriveTitle(text),
+      );
+
+      if (!isLive) {
+        // Surface the BYOK requirement clearly.
+        const msg =
+          "Lumière needs a Gemini API key to chat. Open **Settings** and paste a key from [Google AI Studio](https://aistudio.google.com/apikey). Without a key only the pre-loaded *Frontier model comparison* demo is available.";
+        writeAI(effectiveId, aiId, (d) => ({
+          ...d,
+          state: null,
+          response: { text: msg, revealedTokens: countTokens(msg) },
+          done: true,
+        }));
+        return;
       }
+
+      await runLive(effectiveId, aiId, historySnapshot, text, attachments);
     },
-    [isGenerating, isLive, messages],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isGenerating, isLive, conversation, ensureActive, writeToConversation],
   );
 
-  useEffect(() => () => {
-    timeoutsRef.current.forEach(clearTimeout);
-    abortRef.current?.abort();
-  }, []);
+  // ---------- render ----------
 
+  const messages = conversation?.messages ?? [];
   const isEmpty = messages.length === 0;
-
-  const newConversation = () => {
-    stopAll();
-    setMessages([]);
-    window.localStorage.removeItem(HISTORY_KEY);
-  };
+  const isDemo = !!conversation?.isDemo;
 
   return (
     <main className="flex h-screen flex-1 flex-col">
@@ -374,22 +259,32 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
         >
           {sidebarOpen ? <PanelLeftClose size={15} strokeWidth={1.8} /> : <PanelLeftOpen size={15} strokeWidth={1.8} />}
         </button>
-        <div className="flex items-baseline gap-2.5">
-          <h2 className="text-[13.5px] font-medium text-ink">{isEmpty ? "Untitled" : "Conversation"}</h2>
-          <span className="text-[11.5px] text-ink-muted">
-            {isLive ? "live · Gemini 2.5 Flash" : "demo · scripted"}
+        <div className="flex items-baseline gap-2.5 min-w-0">
+          <h2 className="truncate text-[13.5px] font-medium text-ink max-w-[420px]">
+            {conversation ? conversation.title : "Lumière"}
+          </h2>
+          <span className="text-[11.5px] text-ink-muted whitespace-nowrap">
+            {isDemo ? "preview · read-only" : isLive ? "live · Gemini 2.5 Flash" : "needs API key"}
           </span>
         </div>
 
         <div className="ml-auto flex items-center gap-1">
-          {!isEmpty && (
+          {!isLive && (
             <button
-              onClick={newConversation}
-              className="rounded-lg px-2.5 py-1.5 text-[12px] text-ink-dim transition-colors hover:bg-elevated hover:text-ink"
+              onClick={onOpenSettings}
+              className="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-[12px] text-accent-strong transition-colors hover:bg-accent/15"
             >
-              New
+              <KeyRound size={12} strokeWidth={1.8} />
+              <span>Add API key</span>
             </button>
           )}
+          <button
+            onClick={onNewConversation}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] text-ink-dim transition-colors hover:bg-elevated hover:text-ink"
+          >
+            <Sparkles size={12} strokeWidth={1.8} />
+            <span>New</span>
+          </button>
           <button
             onClick={onOpenSettings}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-dim transition-colors hover:bg-elevated hover:text-ink"
@@ -426,8 +321,24 @@ export function ChatArea({ onToggleSidebar, sidebarOpen, onOpenSettings }: ChatA
         )}
       </div>
 
-      {/* Input */}
-      <ChatInput onSubmit={(t, a) => submit(t, a)} isGenerating={isGenerating} onStop={stopAll} />
+      {/* Input — disabled on demo conversation */}
+      {isDemo ? (
+        <div className="border-t border-border/60 bg-bg/80 px-6 py-4 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-[13px]">
+            <div className="text-ink-dim">
+              <span className="text-ink">Preview conversation.</span> Start a new chat to continue from here.
+            </div>
+            <button
+              onClick={onNewConversation}
+              className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-medium text-bg transition-colors hover:bg-accent-strong"
+            >
+              New conversation
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ChatInput onSubmit={(t, a) => submit(t, a)} isGenerating={isGenerating} onStop={stopAll} />
+      )}
     </main>
   );
 }
