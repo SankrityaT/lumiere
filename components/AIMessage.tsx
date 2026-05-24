@@ -32,9 +32,7 @@ export function AIMessage({ data }: AIMessageProps) {
     >
       {/* Avatar */}
       <div className="sticky top-6 self-start">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface">
-          <Mark size={16} className="text-accent" dense />
-        </div>
+        <Mark size={32} className="text-accent" />
       </div>
 
       <div className="min-w-0 flex-1 pt-0.5">

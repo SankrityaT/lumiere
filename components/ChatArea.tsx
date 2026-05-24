@@ -40,12 +40,15 @@ export function ChatArea({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Stop any in-flight generation if conversation switches
+  // Abort only on full unmount, NOT on conversation switch. Switching away from
+  // a streaming conversation lets the stream finish in the background; its events
+  // still write to its original conversation id via writeToConversation().
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
-  }, [conversation?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-scroll on new messages
   useEffect(() => {
