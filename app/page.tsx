@@ -1,179 +1,199 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowUpRight, Github, Sparkles } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { ArrowUpRight, Github } from "lucide-react";
 import { Mark } from "@/components/Mark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+const ISSUE = "Vol. I · No. 001";
+const MONTH = "May, MMXXVI";
 
 export default function Landing() {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const headlineY = useTransform(scrollYProgress, [0, 1], [0, -40]);
+  const opacityFade = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
+
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
-      {/* Atmospheric backdrop */}
-      <Backdrop />
+    <div className="relative min-h-screen bg-bg text-ink">
+      {/* Masthead */}
+      <Masthead />
 
-      {/* Top nav */}
-      <motion.nav
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: EASE }}
-        className="relative z-10 flex h-16 items-center justify-between px-6 md:px-12"
-      >
-        <div className="flex items-center gap-2.5">
-          <Mark size={20} className="text-accent" />
-          <span className="serif-italic text-[20px] text-ink">Lumière</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="https://github.com/SankrityaT/lumiere"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden h-8 items-center gap-1.5 rounded-full border border-border bg-surface/40 px-3.5 text-[12.5px] text-ink-dim transition-all hover:border-border-strong hover:text-ink md:flex"
-          >
-            <Github size={12} strokeWidth={1.8} />
-            <span>Source</span>
-          </a>
-          <ThemeToggle />
-        </div>
-      </motion.nav>
+      <main ref={heroRef} className="mx-auto max-w-[1180px] px-6 pt-10 md:px-10 md:pt-16">
+        {/* Spread */}
+        <div className="grid grid-cols-12 gap-8 md:gap-12">
+          {/* Left rail — editorial folio */}
+          <aside className="col-span-12 md:col-span-3 md:border-r md:border-border/60 md:pr-8">
+            <LeftRail />
+          </aside>
 
-      {/* Hero */}
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 md:px-12">
-        <div className="mx-auto w-full max-w-[820px] text-center">
-          {/* Mark + label */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.9, ease: EASE }}
-            className="mb-8 inline-flex flex-col items-center gap-3"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-              className="will-change-transform"
-            >
-              <Mark size={56} className="text-accent" />
+          {/* Right column — the piece */}
+          <article className="col-span-12 md:col-span-9">
+            <motion.div style={{ y: headlineY, opacity: opacityFade }}>
+              <Kicker />
+              <Headline />
+              <Standfirst />
+              <PullQuote />
+              <CtaRow />
             </motion.div>
-            <span className="rounded-full border border-border bg-surface/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-muted backdrop-blur-sm">
-              Edition I
-            </span>
-          </motion.div>
-
-          {/* Headline */}
-          <h1
-            className="serif-display text-ink"
-            style={{
-              fontSize: "clamp(2.5rem, 7vw, 5rem)",
-              lineHeight: 1.02,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            <RevealWord delay={0.15}>AI&nbsp;that</RevealWord>{" "}
-            <RevealWord delay={0.28} italic accent>
-              thinks
-            </RevealWord>{" "}
-            <RevealWord delay={0.41}>before</RevealWord>{" "}
-            <br className="hidden md:block" />
-            <RevealWord delay={0.54}>it&nbsp;answers.</RevealWord>
-          </h1>
-
-          {/* Subhead */}
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.85, ease: EASE }}
-            className="mx-auto mt-7 max-w-[560px] text-[15px] leading-relaxed text-ink-dim md:text-[16px]"
-          >
-            Lumière reads the web, shows its reasoning, cites its sources, and writes back with the care of a magazine editor.
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 1.05, ease: EASE }}
-            className="mt-10 flex flex-wrap items-center justify-center gap-3"
-          >
-            <PrimaryCta href="/chat" />
-            <SecondaryCta href="https://github.com/SankrityaT/lumiere" label="View source" icon={<Github size={13} strokeWidth={1.8} />} />
-          </motion.div>
-
-          {/* Tiny meta */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1.4, ease: EASE }}
-            className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-ink-muted"
-          >
-            <MetaPill label="Powered by Gemini 2.5 Flash" />
-            <span className="hidden h-1 w-1 rounded-full bg-ink-muted/40 md:inline-block" />
-            <MetaPill label="Web search via Tavily" />
-            <span className="hidden h-1 w-1 rounded-full bg-ink-muted/40 md:inline-block" />
-            <MetaPill label="Bring your own keys" />
-          </motion.div>
+          </article>
         </div>
 
-        {/* Feature row */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 1.5, ease: EASE }}
-          className="mt-24 grid w-full max-w-5xl grid-cols-1 gap-3 md:grid-cols-3"
-        >
-          {FEATURES.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.55 + i * 0.08, ease: EASE }}
-              whileHover={{ y: -3 }}
-              className="group relative overflow-hidden rounded-2xl border border-border bg-surface/40 p-5 backdrop-blur-sm transition-colors hover:border-accent/25"
-            >
-              <div className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-elevated">
-                <f.icon size={13} strokeWidth={1.7} className="text-accent" />
-              </div>
-              <h3 className="serif-display text-[17px] text-ink">{f.title}</h3>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-dim">{f.body}</p>
-            </motion.div>
-          ))}
-        </motion.div>
+        <Colophon />
       </main>
-
-      {/* Footer */}
-      <motion.footer
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.8, delay: 1.8, ease: EASE }}
-        className="relative z-10 flex h-12 items-center justify-between border-t border-border/40 px-6 text-[11px] text-ink-muted md:px-12"
-      >
-        <span>An editorial showcase, built with Next.js + Gemini.</span>
-        <span className="font-mono">© {new Date().getFullYear()} · Lumière</span>
-      </motion.footer>
     </div>
   );
 }
 
-// ----- atoms -----
+// ---------- masthead ----------
 
-function RevealWord({
+function Masthead() {
+  return (
+    <motion.header
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, ease: EASE }}
+      className="border-b border-border/70"
+    >
+      <div className="mx-auto flex max-w-[1180px] items-center justify-between px-6 py-3 md:px-10">
+        <div className="flex items-center gap-2.5">
+          <Mark size={16} className="text-accent" />
+          <span className="serif-italic text-[15px] leading-none">Lumière</span>
+          <span className="hidden text-[10.5px] uppercase tracking-[0.22em] text-ink-muted md:inline-block ml-3">
+            An editorial AI
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="hidden font-mono text-[10.5px] uppercase tracking-[0.22em] text-ink-muted sm:inline">
+            {ISSUE}
+          </span>
+          <a
+            href="https://github.com/SankrityaT/lumiere"
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-7 items-center gap-1.5 rounded-full border border-border bg-surface/40 px-2.5 text-[11.5px] text-ink-dim transition-colors hover:border-border-strong hover:text-ink"
+          >
+            <Github size={11} strokeWidth={1.8} />
+            <span className="hidden sm:inline">Source</span>
+          </a>
+          <ThemeToggle />
+        </div>
+      </div>
+    </motion.header>
+  );
+}
+
+// ---------- left rail ----------
+
+function LeftRail() {
+  return (
+    <div className="space-y-8 md:sticky md:top-20">
+      <RailRow label="Edition">{ISSUE}</RailRow>
+      <RailRow label="Filed">{MONTH}</RailRow>
+      <RailRow label="By">
+        <a
+          href="https://github.com/SankrityaT"
+          target="_blank"
+          rel="noreferrer"
+          className="serif-italic text-[15px] text-ink underline decoration-accent/40 decoration-1 underline-offset-4 transition-colors hover:decoration-accent"
+        >
+          Sanki
+        </a>
+      </RailRow>
+      <RailRow label="Section">Essays · Frontend</RailRow>
+
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.6, ease: EASE }}
+        className="pt-2"
+      >
+        <div className="text-[10.5px] uppercase tracking-[0.22em] text-ink-muted mb-2">In this issue</div>
+        <ul className="space-y-1.5 text-[12.5px] leading-relaxed text-ink-dim">
+          <li className="flex gap-2"><Index num="01" />Visible reasoning, streamed.</li>
+          <li className="flex gap-2"><Index num="02" />Sourced answers with citations.</li>
+          <li className="flex gap-2"><Index num="03" />Multi-step research, in parallel.</li>
+          <li className="flex gap-2"><Index num="04" />Bring your own keys.</li>
+        </ul>
+      </motion.div>
+    </div>
+  );
+}
+
+function RailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.7, delay: 0.2, ease: EASE }}
+    >
+      <div className="text-[10px] uppercase tracking-[0.22em] text-ink-muted">{label}</div>
+      <div className="mt-1 text-[14px] text-ink">{children}</div>
+    </motion.div>
+  );
+}
+
+function Index({ num }: { num: string }) {
+  return <span className="font-mono text-[10px] text-accent/70 tabular-nums shrink-0 mt-1">{num}</span>;
+}
+
+// ---------- right column atoms ----------
+
+function Kicker() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.15, ease: EASE }}
+      className="mb-6 flex items-center gap-3"
+    >
+      <span className="text-[10.5px] uppercase tracking-[0.28em] text-accent">An Essay</span>
+      <span className="h-px w-12 bg-accent/40" />
+      <span className="text-[10.5px] uppercase tracking-[0.22em] text-ink-muted">Inaugural</span>
+    </motion.div>
+  );
+}
+
+function Headline() {
+  return (
+    <h1
+      className="serif-display text-ink"
+      style={{
+        fontSize: "clamp(2.75rem, 7.5vw, 6.25rem)",
+        lineHeight: 0.97,
+        letterSpacing: "-0.025em",
+        marginBottom: "0.6em",
+      }}
+    >
+      <RevealLine delay={0.28}>On reading</RevealLine>
+      <br />
+      <RevealLine delay={0.45} italic accent>
+        the web.
+      </RevealLine>
+    </h1>
+  );
+}
+
+function RevealLine({
   children,
-  delay = 0,
-  italic = false,
-  accent = false,
+  delay,
+  italic,
+  accent,
 }: {
   children: React.ReactNode;
-  delay?: number;
+  delay: number;
   italic?: boolean;
   accent?: boolean;
 }) {
   return (
-    <span className="inline-block overflow-hidden align-baseline" style={{ paddingBottom: "0.15em" }}>
+    <span className="inline-block overflow-hidden align-baseline" style={{ paddingBottom: "0.1em" }}>
       <motion.span
-        initial={{ y: "110%", opacity: 0 }}
+        initial={{ y: "108%", opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.95, delay, ease: EASE }}
+        transition={{ duration: 1.1, delay, ease: EASE }}
         className={[
           "inline-block",
           italic ? "serif-italic" : "",
@@ -186,95 +206,121 @@ function RevealWord({
   );
 }
 
-function PrimaryCta({ href }: { href: string }) {
+function Standfirst() {
   return (
-    <Link
-      href={href}
-      className="group relative flex h-11 items-center gap-2 overflow-hidden rounded-full bg-accent px-5 text-[13.5px] font-medium text-bg transition-transform hover:scale-[1.02] active:scale-[0.98]"
+    <motion.p
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.9, delay: 0.85, ease: EASE }}
+      className="drop-cap max-w-[58ch] text-[17.5px] leading-[1.65] text-ink-dim md:text-[18.5px]"
     >
-      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-      <Sparkles size={13} strokeWidth={2.2} className="relative" />
-      <span className="relative">Try Lumière</span>
-      <ArrowUpRight size={14} strokeWidth={2.2} className="relative transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-    </Link>
+      An assistant that <em className="serif-italic text-ink">reads what it does not know</em>, holds a thought before it answers, and writes back with the care of a magazine editor. Lumière is a small attempt to put research, reasoning, and writing in one room — and to render that room beautifully.
+    </motion.p>
   );
 }
 
-function SecondaryCta({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
+function PullQuote() {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex h-11 items-center gap-1.5 rounded-full border border-border bg-surface/40 px-5 text-[13.5px] text-ink transition-all hover:border-border-strong hover:bg-elevated"
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.9, delay: 1.05, ease: EASE }}
+      className="my-12 flex items-start gap-5 md:my-16 md:gap-7"
     >
-      {icon}
-      <span>{label}</span>
-      <ArrowUpRight size={13} strokeWidth={1.8} className="text-ink-muted transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-    </a>
+      <span aria-hidden className="serif-italic text-accent/40 leading-[0.7]" style={{ fontSize: "5rem" }}>
+        “
+      </span>
+      <p
+        className="serif-italic text-ink"
+        style={{
+          fontSize: "clamp(1.4rem, 2.6vw, 1.85rem)",
+          lineHeight: 1.3,
+          letterSpacing: "-0.012em",
+          maxWidth: "44ch",
+        }}
+      >
+        An AI that thinks. An AI that cites. An AI that writes back, slowly, in full sentences.
+      </p>
+    </motion.div>
   );
 }
 
-function MetaPill({ label }: { label: string }) {
-  return <span>{label}</span>;
-}
-
-// ----- background -----
-
-function Backdrop() {
+function CtaRow() {
   return (
-    <>
-      {/* Soft radial bloom centered above the hero */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[60vh]"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 70% at 50% 0%, rgb(var(--accent) / 0.10), transparent 70%)",
-        }}
-      />
-      {/* Slowly drifting accent orb, blurred */}
-      <motion.div
-        aria-hidden
-        initial={{ x: -120, y: -60, opacity: 0 }}
-        animate={{
-          x: [-120, 80, -40, -120],
-          y: [-60, 40, -20, -60],
-          opacity: 0.5,
-        }}
-        transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute -left-32 top-1/4 h-[420px] w-[420px] rounded-full bg-accent/25 blur-[120px]"
-      />
-      {/* Hairline grid */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgb(var(--text)) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--text)) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-        }}
-      />
-    </>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 1.25, ease: EASE }}
+      className="flex flex-col items-start gap-5 md:flex-row md:items-baseline md:gap-8"
+    >
+      <Link
+        href="/chat"
+        className="group inline-flex items-baseline gap-2 text-ink"
+        style={{ fontSize: "clamp(1.5rem, 2.2vw, 1.875rem)" }}
+      >
+        <span
+          className="serif-italic"
+          style={{
+            backgroundImage:
+              "linear-gradient(currentColor, currentColor)",
+            backgroundSize: "100% 1.5px",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "0 100%",
+            paddingBottom: "0.1em",
+          }}
+        >
+          Continue reading
+        </span>
+        <span className="text-accent transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-2">
+          →
+        </span>
+      </Link>
+      <span className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-ink-muted">
+        Approx. 4 minutes
+      </span>
+    </motion.div>
   );
 }
 
-// ----- data -----
+// ---------- colophon (footer) ----------
 
-const FEATURES = [
-  {
-    icon: Sparkles,
-    title: "Visible reasoning",
-    body: "Watch the model plan before it answers. The thinking panel streams its internal logic, then collapses.",
-  },
-  {
-    icon: Github,
-    title: "Real web sources",
-    body: "Tavily search returns titles, URLs, and snippets. Every claim is cited inline with a numbered chip.",
-  },
-  {
-    icon: ArrowUpRight,
-    title: "Multi-step research",
-    body: "Comparison questions trigger separate searches per item. Up to five queries per turn, parallelised.",
-  },
-];
+function Colophon() {
+  return (
+    <motion.footer
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.2, delay: 1.5, ease: EASE }}
+      className="mt-24 border-t border-border/60 py-8 md:mt-36"
+    >
+      <div className="grid grid-cols-12 gap-8 md:gap-12 text-[12px] text-ink-muted">
+        <div className="col-span-12 md:col-span-3" />
+        <div className="col-span-12 md:col-span-9">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+            <FooterCol label="Composed">May, MMXXVI</FooterCol>
+            <FooterCol label="Type">Instrument Serif · Neue Montreal</FooterCol>
+            <FooterCol label="Engine">Gemini 2.5 Flash · Tavily</FooterCol>
+            <FooterCol label="Edited by">
+              <a href="https://github.com/SankrityaT" target="_blank" rel="noreferrer" className="text-ink underline decoration-accent/40 underline-offset-4 transition-colors hover:decoration-accent">
+                Sanki
+              </a>
+            </FooterCol>
+          </div>
+          <div className="mt-8 flex items-center gap-2 text-[10.5px] uppercase tracking-[0.22em] text-ink-muted">
+            <span>End of front matter</span>
+            <span className="h-px flex-1 bg-border/60" />
+            <Mark size={12} className="text-accent/60" dense />
+          </div>
+        </div>
+      </div>
+    </motion.footer>
+  );
+}
+
+function FooterCol({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.22em] text-ink-muted">{label}</div>
+      <div className="mt-1.5 text-[12.5px] text-ink">{children}</div>
+    </div>
+  );
+}
