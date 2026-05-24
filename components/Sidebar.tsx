@@ -54,7 +54,11 @@ function Group({ label, items }: { label: string; items: typeof TODAY }) {
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onOpenSettings: () => void;
+}
+
+export function Sidebar({ onOpenSettings }: SidebarProps) {
   return (
     <aside className="flex h-screen w-[270px] flex-col border-r border-border bg-surface/60 backdrop-blur-xl">
       {/* Logo */}
@@ -98,7 +102,11 @@ export function Sidebar() {
             <div className="truncate text-[11px] text-ink-muted">Pro plan</div>
           </div>
           <ThemeToggle />
-          <button className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-elevated hover:text-ink" aria-label="Settings">
+          <button
+            onClick={onOpenSettings}
+            className="rounded-md p-1.5 text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
+            aria-label="Settings"
+          >
             <Settings2 size={14} strokeWidth={1.8} />
           </button>
         </div>
